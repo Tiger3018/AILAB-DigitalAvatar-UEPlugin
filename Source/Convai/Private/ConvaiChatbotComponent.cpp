@@ -1,6 +1,7 @@
 // Copyright 2022 Convai Inc. All Rights Reserved.
 
 #include "ConvaiChatbotComponent.h"
+#include "AILabChatGenerateProxy.h"
 #include "ConvaiPlayerComponent.h"
 #include "../Convai.h"
 #include "ConvaiGRPC.h"
@@ -577,6 +578,11 @@ void UConvaiChatbotComponent::Bind_GRPC_Request_Delegates()
 	ConvaiGRPCGetResponseProxy->OnEmotionReceived.BindUObject(this, &UConvaiChatbotComponent::onEmotionReceived);
 	ConvaiGRPCGetResponseProxy->OnFinish.BindUObject(this, &UConvaiChatbotComponent::onFinishedReceivingData);
 	ConvaiGRPCGetResponseProxy->OnFailure.BindUObject(this, &UConvaiChatbotComponent::onFailure);
+
+	if(Convai::Get().GetConvaiSettings()->EnableAILabCustomChatSpeechAPI)
+	{
+		ConvaiGRPCGetResponseProxy->OnDataReceived.Unbind();
+	}
 }
 
 void UConvaiChatbotComponent::Unbind_GRPC_Request_Delegates()
@@ -594,6 +600,20 @@ void UConvaiChatbotComponent::Unbind_GRPC_Request_Delegates()
 	ConvaiGRPCGetResponseProxy->OnEmotionReceived.Unbind();
 	ConvaiGRPCGetResponseProxy->OnFinish.Unbind();
 	ConvaiGRPCGetResponseProxy->OnFailure.Unbind();
+}
+
+
+void UConvaiChatbotComponent::UnbindAILabChatProxyIfNeeded(bool SetNullptr)
+{
+	if(IsValid(AILabChatGenerateProxy))
+	{
+		UE_LOG(ConvaiChatbotComponentLog, Log, TEXT("Unbind AILabChat"));
+		//AILabChatGenerateProxy->UnbindChatbotComponent(); // Since it will unbind on its destory.
+		if(SetNullptr)
+		{
+			AILabChatGenerateProxy = nullptr;
+		}
+	}
 }
 
 void UConvaiChatbotComponent::Cleanup(bool StreamConnectionFinished)
@@ -717,8 +737,14 @@ void UConvaiChatbotComponent::OnTranscriptionReceived(FString Transcription, boo
 				// Run the deprecated event
 				OnTranscriptionReceivedEvent.Broadcast(Transcription, IsTranscriptionReady, IsFinal);
 			});
-	}
 
+		if(IsFinal && Convai::Get().GetConvaiSettings()->EnableAILabCustomChatSpeechAPI)
+		{
+			UnbindAILabChatProxyIfNeeded();
+			AILabChatGenerateProxy = UAILabChatGenerateProxy::GenerateChatResponseFromSingleQueryProxy(this, Transcription);
+			AILabChatGenerateProxy->Activate();
+		}
+	};
 	LastTranscription = Transcription;
 	ReceivedFinalTranscription = IsFinal;
 }
@@ -795,6 +821,10 @@ void UConvaiChatbotComponent::onResponseDataReceived(const FString ReceivedText,
 	{
 		UE_LOG(ConvaiChatbotComponentLog, Log, TEXT("Chatbot Total Received Audio: %f seconds"), TotalReceivedAudioDuration);
 		TotalReceivedAudioDuration = 0;
+	}
+	if(IsFinal && Convai::Get().GetConvaiSettings()->EnableAILabCustomChatSpeechAPI)
+	{
+		UnbindAILabChatProxyIfNeeded();
 	}
 
 	ReceivedFinalData = IsFinal;
@@ -1111,6 +1141,7 @@ void UConvaiChatbotComponent::BeginDestroy()
 		Environment->OnEnvironmentChanged.Unbind();
 	}
 	Unbind_GRPC_Request_Delegates();
+	UnbindAILabChatProxyIfNeeded(true);
 	Cleanup(true);
 	Super::BeginDestroy();
 }

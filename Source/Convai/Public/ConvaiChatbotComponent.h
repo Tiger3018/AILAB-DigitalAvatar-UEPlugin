@@ -36,6 +36,7 @@ class UConvaiPlayerComponent;
 class USoundWaveProcedural;
 class UConvaiGRPCGetResponseProxy;
 class UConvaiChatBotGetDetailsProxy;
+class UAILabChatGenerateProxy;
 
 UCLASS(meta = (BlueprintSpawnableComponent), DisplayName = "Convai Chatbot")
 class CONVAI_API UConvaiChatbotComponent : public UConvaiAudioStreamer
@@ -356,9 +357,11 @@ private:
 
 	void Unbind_GRPC_Request_Delegates();
 
+	void UnbindAILabChatProxyIfNeeded(bool SetNullptr = false);
+
 	void Cleanup(bool StreamConnectionFinished = false);
 
-private:
+public:
 	UFUNCTION(NetMulticast, Reliable, Category = "Convai")
 	void Broadcast_OnTranscriptionReceived(const FString& Transcription, bool IsTranscriptionReady, bool IsFinal);
 	UFUNCTION(NetMulticast, Reliable, Category = "Convai")
@@ -397,6 +400,9 @@ private:
 
 	UPROPERTY()
 	UConvaiGRPCGetResponseProxy* ConvaiGRPCGetResponseProxy;
+
+	UPROPERTY()
+	UAILabChatGenerateProxy* AILabChatGenerateProxy;
 
 	bool GenerateActions; // Should we generate actions
 	bool TextInput; // Whether  to use text or audio as input to the API

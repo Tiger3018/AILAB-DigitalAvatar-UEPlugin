@@ -26,6 +26,14 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Convai API", meta = (DisplayName = "Enable New Action System (Experimental)"))
 	bool EnableNewActionSystem;
 
+	/* Custom Chatbot + TTS API */
+	UPROPERTY(Config, EditAnywhere, Category = "Convai API")
+	bool EnableAILabCustomChatSpeechAPI;
+
+	/* Custom STT API */
+	UPROPERTY(Config, EditAnywhere, Category = "Convai API")
+	bool EnableAILabCustomSpeechRecognition_API;
+
 	/* Custom Server URL (Used for debugging) */
 	UPROPERTY(Config, EditAnywhere, AdvancedDisplay, Category = "Convai API")
 	FString CustomURL;
